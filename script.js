@@ -11,33 +11,30 @@ document.addEventListener("DOMContentLoaded", function () {
   let currentFilter = "all";
 
   function renderTasks() {
-    // Sort tasks by priority: high > medium > low
-    const priorityOrder = { "high": 3, "medium": 2, "low": 1 };
-    const sortedTasks = [...tasks].sort((a, b) => {
-      return priorityOrder[b.priority] - priorityOrder[a.priority];
-    });
+    const priorityOrder = { high: 3, medium: 2, low: 1 };
+    const sortedTasks = [...tasks].sort(
+      (a, b) => priorityOrder[b.priority] - priorityOrder[a.priority]
+    );
 
     listContainer.innerHTML = "";
-    sortedTasks.forEach((task, index) => {
+    sortedTasks.forEach((task) => {
       if (currentFilter === "active" && task.done) return;
       if (currentFilter === "completed" && !task.done) return;
 
       const li = document.createElement("li");
+      li.dataset.id = task.id; // attach unique id
       if (task.done) li.classList.add("checked");
 
       // Priority badge
       const badge = document.createElement("span");
-      badge.classList.add("priority-badge");
-      if (task.priority === "high") badge.classList.add("priority-high");
-      else if (task.priority === "medium") badge.classList.add("priority-medium");
-      else badge.classList.add("priority-low");
-
+      badge.classList.add("priority-badge", `priority-${task.priority}`);
       li.appendChild(badge);
+
       li.appendChild(document.createTextNode(task.text));
 
       // Delete button
       const span = document.createElement("span");
-      span.textContent = "\u00d7";
+      span.textContent = "\u00d7"; // × symbol
       li.appendChild(span);
 
       listContainer.appendChild(li);
@@ -45,8 +42,11 @@ document.addEventListener("DOMContentLoaded", function () {
       // Animate new task
       li.classList.add("new");
       requestAnimationFrame(() => li.classList.add("show"));
-      li.addEventListener("transitionend", () => li.classList.remove("new", "show"));
+      li.addEventListener("transitionend", () =>
+        li.classList.remove("new", "show")
+      );
     });
+
     updateCounter();
   }
 
@@ -54,7 +54,10 @@ document.addEventListener("DOMContentLoaded", function () {
     const text = inputBox.value.trim();
     if (text === "") return alert("You must write something!");
     const priority = prioritySelect.value;
-    tasks.push({ text: text, done: false, priority: priority });
+
+    const id = Date.now(); // unique task id
+    tasks.push({ id, text, done: false, priority });
+
     saveTasks();
     renderTasks();
     inputBox.value = "";
@@ -71,24 +74,29 @@ document.addEventListener("DOMContentLoaded", function () {
     taskCounter.textContent = `Tasks remaining: ${remaining}`;
   }
 
-  // Toggle check / delete
+  // Toggle done / delete tasks
   listContainer.addEventListener("click", function (e) {
     const li = e.target.closest("li");
     if (!li) return;
-    const index = Array.from(listContainer.children).indexOf(li);
 
-    if (e.target.tagName === "LI") {
-      tasks[index].done = !tasks[index].done;
-    } else if (e.target.tagName === "SPAN") {
+    const taskId = Number(li.dataset.id);
+    const task = tasks.find((t) => t.id === taskId);
+    if (!task) return;
+
+    if (e.target.tagName === "SPAN" && e.target !== li.querySelector(".priority-badge")) {
+      // Delete button clicked
       li.style.opacity = 0;
       li.style.transform = "translateX(20px)";
       setTimeout(() => {
-        tasks.splice(index, 1);
+        tasks = tasks.filter((t) => t.id !== taskId);
         saveTasks();
         renderTasks();
       }, 200);
       return;
     }
+
+    // Toggle done for any other click (text or badge)
+    task.done = !task.done;
     saveTasks();
     renderTasks();
   });
@@ -101,9 +109,9 @@ document.addEventListener("DOMContentLoaded", function () {
   addBtn.addEventListener("click", addTask);
 
   // Filter buttons
-  filterButtons.forEach(btn => {
+  filterButtons.forEach((btn) => {
     btn.addEventListener("click", () => {
-      filterButtons.forEach(b => b.classList.remove("active"));
+      filterButtons.forEach((b) => b.classList.remove("active"));
       btn.classList.add("active");
       currentFilter = btn.dataset.filter;
       renderTasks();
